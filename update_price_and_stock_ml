@@ -1,0 +1,42 @@
+#!/usr/bin/python
+
+import sys
+from xmlrpc import client
+import ssl
+import csv
+from xmlrpc.server import SimpleXMLRPCServer
+import os
+
+
+server_url = 'http://192.168.0.114:1469'
+db_name = 'odoo.mydb.com'
+username = 'adminusername'
+password = 'adminpassword'
+
+common = client.ServerProxy('%s/xmlrpc/2/common' % server_url)
+user_id = common.authenticate(db_name, username, password, {})
+models = client.ServerProxy('%s/xmlrpc/2/object' % server_url)
+
+if user_id:
+	f = open('Mercadolibre2.csv','rt')
+	reader = csv.DictReader(f,delimiter=';')
+
+	for row in reader:
+		default_code =row['Referencia interna']
+		nombre = row['Nombre Mercado Libre']
+		precio = row['Precio de venta con IVA']
+		stock_ml=row['Stock']
+		vals_update = {
+		    		'name': nombre,
+					'meli_price': precio,
+					'meli_available_quantity': stock_ml
+		}
+		product_id = models.execute(db_name,user_id,password,'product.product','search',[('default_code','=',default_code)])
+		if product_id:
+				print(product_id, vals_update)
+				return_id = models.execute(db_name,user_id,password,'product.product','write',product_id,vals_update)
+	
+
+	f.close()
+else:
+	print('Error: username or password incorrect')
